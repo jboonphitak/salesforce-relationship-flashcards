@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lookup vs Master-Detail Flashcards</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #2c5f7d 0%, #1a3a52 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header h1 {
+            color: #2c5f7d;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .header p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c5f7d;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .card-container {
+            perspective: 1000px;
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card-front {
+            background: white;
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: rotateY(180deg);
+        }
+
+        .card-front h2 {
+            color: #2c5f7d;
+            font-size: 1.8em;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .card-front .hint {
+            margin-top: 20px;
+            color: #999;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .card-back .answer {
+            font-size: 3em;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .card-back .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.2);
+            transition: left 0.3s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-prev {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            color: white;
+        }
+
+        .btn-prev:hover {
+            background: linear-gradient(135deg, #7f8c8d, #6c7a7b);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, #2c5f7d, #1a3a52);
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: linear-gradient(135deg, #1a3a52, #0d1f2d);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        .btn-shuffle {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            color: white;
+        }
+
+        .btn-shuffle:hover {
+            background: linear-gradient(135deg, #d35400, #bf4800);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        .card-number {
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #2c5f7d;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid rgba(44, 95, 125, 0.1);
+        }
+
+        .legend {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .legend h3 {
+            color: #2c5f7d;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+        }
+
+        .lookup-color {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .master-detail-color {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .footer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .footer p {
+            color: #666;
+            font-size: 0.95em;
+            margin: 0;
+        }
+
+        .footer a {
+            color: #2c5f7d;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: #0077b5;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .card-container {
+                height: 350px;
+            }
+
+            .card-front h2 {
+                font-size: 1.3em;
+            }
+
+            .card-back .answer {
+                font-size: 2em;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Lookup vs Master-Detail Relationships</h1>
+        <p>Click the card to reveal the answer. Master these key differences!</p>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="reviewed">0</div>
+                <div class="stat-label">Reviewed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="remaining">18</div>
+                <div class="stat-label">Remaining</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="total">18</div>
+                <div class="stat-label">Total Cards</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+    </div>
+
+    <div class="card-number" id="cardNumber">Card 1 of 18</div>
+
+    <div class="card-container">
+        <div class="card" id="flashcard" onclick="flipCard()">
+            <div class="card-face card-front">
+                <h2 id="question">Loading...</h2>
+                <p class="hint">Click to reveal answer</p>
+            </div>
+            <div class="card-face card-back">
+                <div class="answer" id="answer">Answer</div>
+                <div class="badge" id="badge">Relationship Type</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-prev" onclick="previousCard()">
+            <span>←</span>
+            <span>Previous</span>
+        </button>
+        <button class="btn btn-shuffle" onclick="shuffleCards()">
+            <span>🔀</span>
+            <span>Shuffle</span>
+        </button>
+        <button class="btn btn-reset" onclick="resetProgress()">
+            <span>↺</span>
+            <span>Reset</span>
+        </button>
+        <button class="btn btn-next" onclick="nextCard()">
+            <span>Next</span>
+            <span>→</span>
+        </button>
+    </div>
+
+    <div class="legend">
+        <h3>Quick Reference</h3>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-color lookup-color"></div>
+                <span><strong>Lookup:</strong> Loose, flexible relationship</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color master-detail-color"></div>
+                <span><strong>Master-Detail:</strong> Tight, dependent relationship</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Created by <a href="https://www.linkedin.com/in/john-boonphitak-salesforce/" target="_blank" rel="noopener noreferrer">John Boonphitak</a> • Connect on LinkedIn</p>
+        <p style="margin-top: 8px; font-size: 0.85em; color: #999;">For educational use only</p>
+    </div>
+
+    <script>
+        const flashcards = [
+            {
+                question: "Loose Relationship",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Tight Relationship",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Parent Record Not Required",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Parent Record Always Required for Creation",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Independent Sharing and Security",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Parent Access Controls Child Access",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Independent Owner",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Parent Owner (child inherits owner)",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Deletion Removes Value in Lookup Field (child record remains)",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Parent Deletion Results in Child Deletion (cascade delete)",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Lookup Field Optional",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Lookup Field Required on Page",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Roll-Up Summary Fields NOT Possible",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Roll-Up Summary Fields Possible",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Standard Object Can Be On Many Side (child side)",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Standard Object CANNOT Be Child",
+                answer: "Master-Detail",
+                type: "master-detail"
+            },
+            {
+                question: "Maximum of 40 per Object",
+                answer: "Lookup",
+                type: "lookup"
+            },
+            {
+                question: "Maximum of 2 Per Object",
+                answer: "Master-Detail",
+                type: "master-detail"
+            }
+        ];
+
+        let currentCardIndex = 0;
+        let reviewedCards = new Set();
+        let currentDeck = [...flashcards];
+
+        // Shuffle the deck on initial load
+        function initialShuffle() {
+            for (let i = currentDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [currentDeck[i], currentDeck[j]] = [currentDeck[j], currentDeck[i]];
+            }
+        }
+
+        // Shuffle immediately on load
+        initialShuffle();
+
+        function updateCard() {
+            const flashcardElement = document.getElementById('flashcard');
+            
+            // Immediately remove flipped class and disable transition temporarily
+            flashcardElement.style.transition = 'none';
+            flashcardElement.classList.remove('flipped');
+            
+            // Force a reflow to ensure the change takes effect
+            flashcardElement.offsetHeight;
+            
+            // Re-enable transition
+            flashcardElement.style.transition = 'transform 0.6s';
+            
+            // Update content
+            const card = currentDeck[currentCardIndex];
+            document.getElementById('question').textContent = card.question;
+            document.getElementById('answer').textContent = card.answer;
+            document.getElementById('badge').textContent = card.answer + ' Relationship';
+            document.getElementById('cardNumber').textContent = `Card ${currentCardIndex + 1} of ${currentDeck.length}`;
+            
+            // Update card back color based on type
+            const cardBack = document.querySelector('.card-back');
+            if (card.type === 'lookup') {
+                cardBack.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+            } else {
+                cardBack.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+
+        function flipCard() {
+            const card = document.getElementById('flashcard');
+            card.classList.toggle('flipped');
+            
+            // Mark as reviewed when flipped
+            if (card.classList.contains('flipped')) {
+                reviewedCards.add(currentCardIndex);
+                updateProgress();
+            }
+        }
+
+        function nextCard() {
+            if (currentCardIndex < currentDeck.length - 1) {
+                currentCardIndex++;
+                updateCard();
+            } else {
+                // Loop back to first card
+                currentCardIndex = 0;
+                updateCard();
+            }
+        }
+
+        function previousCard() {
+            if (currentCardIndex > 0) {
+                currentCardIndex--;
+                updateCard();
+            } else {
+                // Loop to last card
+                currentCardIndex = currentDeck.length - 1;
+                updateCard();
+            }
+        }
+
+        function shuffleCards() {
+            // Fisher-Yates shuffle
+            for (let i = currentDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [currentDeck[i], currentDeck[j]] = [currentDeck[j], currentDeck[i]];
+            }
+            currentCardIndex = 0;
+            updateCard();
+        }
+
+        function resetProgress() {
+            reviewedCards.clear();
+            currentCardIndex = 0;
+            currentDeck = [...flashcards];
+            updateCard();
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const reviewed = reviewedCards.size;
+            const remaining = currentDeck.length - reviewed;
+            const percentage = (reviewed / currentDeck.length) * 100;
+
+            document.getElementById('reviewed').textContent = reviewed;
+            document.getElementById('remaining').textContent = remaining;
+            document.getElementById('progress').style.width = percentage + '%';
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                if (document.getElementById('flashcard').classList.contains('flipped')) {
+                    nextCard();
+                } else {
+                    flipCard();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                previousCard();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                flipCard();
+            }
+        });
+
+        // Initialize
+        updateCard();
+        updateProgress();
+    </script>
+</body>
+</html>
